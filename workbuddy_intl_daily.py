@@ -478,6 +478,17 @@ def save_store(store):
         log("⚠️ 令牌缓存写入失败: %s" % error)
 
 
+def apply_stored_tokens(accounts, store):
+    """续期结果只写进 store，环境变量里的初始令牌可能已被轮换失效，所以 store 优先。
+    重新登录换了 .env 时，需同时删掉 store 里该账号的键，否则仍会用旧令牌。"""
+    for account in accounts:
+        saved = store.get(account["uid"] or account["note"])
+        if isinstance(saved, dict) and saved.get("access_token"):
+            account["token"] = saved["access_token"]
+            account["refresh_token"] = saved.get("refresh_token") or account["refresh_token"]
+    return accounts
+
+
 def refresh_token(at, rt):
     """用 RT 换新令牌；返回 (新AT, 新RT) 或 (None, 原因)。"""
     if not rt:
@@ -558,7 +569,7 @@ def main():
     if not raw:
         single = os.environ.get("WORKBUDDY_TOKEN", "").strip()
         raw = single
-    accounts = parse_accounts(raw)
+    accounts = apply_stored_tokens(parse_accounts(raw), load_store())
     if not accounts:
         log("❌ 未配置 WORKBUDDY_INTL_TOKENS（或 WORKBUDDY_TOKEN）。")
         log("   国际版登录态与国内版不通用，请从 www.workbuddy.ai 获取。")

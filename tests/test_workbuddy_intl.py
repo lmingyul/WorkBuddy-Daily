@@ -79,6 +79,15 @@ class InternationalBehaviorTests(unittest.TestCase):
         self.assertEqual(401, response.status_code)
         self.assertEqual(401, payload["code"])
 
+    def test_rotated_tokens_in_store_override_env_tokens(self):
+        accounts = MODULE.parse_accounts("a|env-at-a|uid-a|env-rt-a&b|env-at-b|uid-b|env-rt-b")
+        store = {"uid-a": {"access_token": "new-at-a", "refresh_token": "new-rt-a"}}
+
+        MODULE.apply_stored_tokens(accounts, store)
+
+        self.assertEqual(("new-at-a", "new-rt-a"), (accounts[0]["token"], accounts[0]["refresh_token"]))
+        self.assertEqual(("env-at-b", "env-rt-b"), (accounts[1]["token"], accounts[1]["refresh_token"]))
+
     def test_claim_label_distinguishes_restricted_from_expired(self):
         self.assertIn("账号受限", MODULE.claim_label(11140, ""))
         self.assertIn("登录状态失效", MODULE.claim_label(401, ""))
